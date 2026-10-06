@@ -3,11 +3,9 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Assistente Interativo Web</title>
+  <title>Assistente 3D com Three.js</title>
   <style>
-    * {
-      box-sizing: border-box;
-    }
+    * { box-sizing: border-box; }
 
     body {
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
@@ -22,7 +20,6 @@
       overflow: hidden;
     }
 
-    /* Painel demonstrativo da aplicação */
     .painel {
       background: #1e293b;
       padding: 32px;
@@ -32,20 +29,11 @@
       text-align: center;
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
       border: 1px solid #334155;
+      z-index: 10;
     }
 
-    h1 {
-      margin-top: 0;
-      font-size: 22px;
-      color: #38bdf8;
-    }
-
-    p {
-      color: #94a3b8;
-      font-size: 14px;
-      margin-bottom: 24px;
-      line-height: 1.5;
-    }
+    h1 { margin-top: 0; font-size: 22px; color: #38bdf8; }
+    p { color: #94a3b8; font-size: 14px; margin-bottom: 24px; line-height: 1.5; }
 
     .btn-grid {
       display: grid;
@@ -62,53 +50,49 @@
       cursor: pointer;
       transition: transform 0.1s ease, filter 0.2s ease;
     }
+    button:active { transform: scale(0.97); }
 
-    button:active {
-      transform: scale(0.97);
-    }
+    .btn-avancar  { background-color: #0284c7; color: white; }
+    .btn-sucesso  { background-color: #16a34a; color: white; }
+    .btn-alerta   { background-color: #d97706; color: white; }
+    .btn-erro     { background-color: #dc2626; color: white; }
 
-    .btn-avancar  { background-color: #0284c7; color: #ffffff; }
-    .btn-sucesso  { background-color: #16a34a; color: #ffffff; }
-    .btn-alerta   { background-color: #d97706; color: #ffffff; }
-    .btn-erro     { background-color: #dc2626; color: #ffffff; }
-
-    /* ========================================================= */
-    /* COMPONENTE DO ASSISTENTE NO CANTO DO ECRÃ                 */
-    /* ========================================================= */
     #assistente-container {
       position: fixed;
-      bottom: 10px;
-      right: 25px;
+      bottom: 0px;
+      right: 15px;
+      width: 280px;
+      height: 440px;
+      z-index: 9999;
+      pointer-events: none;
       display: flex;
       flex-direction: column;
       align-items: flex-end;
-      z-index: 9999;
-      pointer-events: none;
+      justify-content: flex-end;
     }
 
-    /* Balão de Diálogo */
     #balao-fala {
       pointer-events: auto;
       background: #ffffff;
       color: #0f172a;
       padding: 12px 16px;
       border-radius: 14px;
-      max-width: 220px;
+      max-width: 240px;
       font-size: 13px;
       font-weight: 600;
       line-height: 1.4;
-      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
       margin-bottom: 6px;
+      margin-right: 25px;
       position: relative;
-      transition: transform 0.2s ease;
+      transition: opacity 0.2s ease, transform 0.2s ease;
     }
 
-    /* Ponteiro do balão a apontar para o assistente */
     #balao-fala::after {
       content: '';
       position: absolute;
       bottom: -7px;
-      right: 50px;
+      right: 60px;
       border-width: 7px 7px 0;
       border-style: solid;
       border-color: #ffffff transparent;
@@ -116,46 +100,28 @@
       width: 0;
     }
 
-    /* Imagem do Mascote com Respiração / Flutuação Contínua */
-    #mascote-img {
+    #canvas-3d {
+      width: 100% !important;
+      height: 360px !important;
       pointer-events: auto;
-      width: 140px;
-      height: auto;
-      object-fit: contain;
-      cursor: pointer;
-      filter: drop-shadow(0 12px 18px rgba(0, 0, 0, 0.45));
-      animation: flutuar 3.4s infinite ease-in-out;
-      transform-origin: bottom center;
-    }
-
-    /* Movimento autónomo contínuo */
-    @keyframes flutuar {
-      0%, 100% {
-        transform: translateY(0px);
-      }
-      50% {
-        transform: translateY(-8px);
-      }
-    }
-
-    /* Salto ao interagir ou falar */
-    .salto {
-      animation: animar-salto 0.35s ease !important;
-    }
-
-    @keyframes animar-salto {
-      0%   { transform: scale(1) translateY(0); }
-      50%  { transform: scale(1.06) translateY(-12px); }
-      100% { transform: scale(1) translateY(0); }
+      cursor: grab;
     }
   </style>
+
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+        "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+      }
+    }
+  </script>
 </head>
 <body>
 
-  <!-- Painel de Testes -->
   <div class="painel">
     <h1>Painel de Demonstração</h1>
-    <p>Clique nos botões abaixo ou aguarde 7 segundos sem interagir para vê-lo a comunicar sozinho:</p>
+    <p>Mova o rato pelo ecrã para ver o seu modelo 3D virar e acompanhar os seus movimentos em tempo real:</p>
     
     <div class="btn-grid">
       <button class="btn-avancar" id="btn-avancar">Avançar Etapa</button>
@@ -165,67 +131,118 @@
     </div>
   </div>
 
-  <!-- Estrutura do Assistente -->
   <div id="assistente-container">
-    <div id="balao-fala">Olá! Estou pronto para o acompanhar.</div>
-    <img id="mascote-img" src="mascote.png" alt="Assistente Virtual">
+    <div id="balao-fala">A carregar modelo 3D...</div>
+    <canvas id="canvas-3d"></canvas>
   </div>
 
-  <script>
-    const balao   = document.getElementById('balao-fala');
-    const mascote = document.getElementById('mascote-img');
+  <script type="module">
+    import * as THREE from 'three';
+    import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 
-    let timerInatividade;
-    const frasesOcioso = [
-      "Ainda por aí? Se precisar de ajuda, basta carregar!",
-      "Tudo sob controlo por aqui! 👍",
-      "Pronto para prosseguir para a próxima fase?",
-      "Dúvidas no processo? Escolha uma das opções no ecrã."
-    ];
+    const balao = document.getElementById('balao-fala');
+    const canvas = document.getElementById('canvas-3d');
 
-    // Atualiza o texto e despoleta o efeito visual
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(42, canvas.clientWidth / canvas.clientHeight, 0.1, 100);
+    camera.position.set(0, 1.25, 2.3);
+
+    const renderer = new THREE.WebGLRenderer({ canvas: canvas, alpha: true, antialias: true });
+    renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.25;
+
+    const luzAmbiente = new THREE.AmbientLight(0xffffff, 1.6);
+    scene.add(luzAmbiente);
+
+    const luzFrontal = new THREE.DirectionalLight(0xffffff, 2.0);
+    luzFrontal.position.set(2, 3, 3);
+    scene.add(luzFrontal);
+
+    const luzPreenchimento = new THREE.DirectionalLight(0x38bdf8, 1.2);
+    luzPreenchimento.position.set(-2, 1, 2);
+    scene.add(luzPreenchimento);
+
+    let avatarModel = null;
+    const targetRotation = { x: 0, y: 0 };
+
+    const loader = new GLTFLoader();
+    loader.load(
+      'mascote.glb',
+      (gltf) => {
+        avatarModel = gltf.scene;
+        avatarModel.position.set(0, 0, 0);
+        scene.add(avatarModel);
+        balao.innerText = 'Olá! Estou online em 3D. Mova o rato para interagir!';
+      },
+      undefined,
+      (err) => {
+        balao.innerText = 'Certifique-se de que o ficheiro mascote.glb está na raiz do GitHub.';
+      }
+    );
+
+    window.addEventListener('mousemove', (e) => {
+      const mouseX = (e.clientX / window.innerWidth) * 2 - 1;
+      const mouseY = -(e.clientY / window.innerHeight) * 2 + 1;
+
+      targetRotation.y = mouseX * 0.45;
+      targetRotation.x = -mouseY * 0.2;
+    });
+
     function falar(texto) {
       balao.innerText = texto;
-
-      mascote.classList.remove('salto');
-      void mascote.offsetWidth; // Força o recálculo imediato do browser
-      mascote.classList.add('salto');
-
-      reiniciarInatividade();
+      if (avatarModel) {
+        avatarModel.scale.set(1.08, 1.08, 1.08);
+        setTimeout(() => {
+          if (avatarModel) avatarModel.scale.set(1, 1, 1);
+        }, 250);
+      }
     }
 
-    // Comunica automaticamente após 7 segundos de inatividade
-    function reiniciarInatividade() {
-      clearTimeout(timerInatividade);
-      timerInatividade = setTimeout(() => {
-        const frase = frasesOcioso[Math.floor(Math.random() * frasesOcioso.length)];
-        falar(frase);
-      }, 7000);
+    const clock = new THREE.Clock();
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const elapsed = clock.getElapsedTime();
+
+      if (avatarModel) {
+        avatarModel.position.y = Math.sin(elapsed * 2.4) * 0.025;
+        avatarModel.rotation.y = THREE.MathUtils.lerp(avatarModel.rotation.y, targetRotation.y, 0.08);
+        avatarModel.rotation.x = THREE.MathUtils.lerp(avatarModel.rotation.x, targetRotation.x, 0.08);
+      }
+
+      renderer.render(scene, camera);
     }
 
-    reiniciarInatividade();
+    animate();
 
-    // Eventos dos botões do ecrã
     document.getElementById('btn-avancar').addEventListener('click', () => {
-      falar('Excelente! Dados validados, podemos continuar.');
+      falar('Boa! Dados validados, vamos para o próximo passo.');
     });
 
     document.getElementById('btn-sucesso').addEventListener('click', () => {
-      falar('Fantástico! Processo finalizado com 100% de sucesso!');
+      falar('Sensacional! Processo finalizado com 100% de sucesso!');
     });
 
     document.getElementById('btn-alerta').addEventListener('click', () => {
-      falar('Atenção: confirme se todos os campos foram preenchidos.');
+      falar('Atenção: verifique se não ficou nenhum dado pendente.');
     });
 
     document.getElementById('btn-erro').addEventListener('click', () => {
-      falar('Ops! Foi detetada uma inconsistência nesta ação.');
+      falar('Ops! Foi detetada uma falha nessa ação.');
     });
 
-    // Clique direto no mascote
-    mascote.addEventListener('click', () => {
-      falar('Tudo operacional! Pode prosseguir no sistema.');
-    });
+    let timerOcioso;
+    function reiniciarOcioso() {
+      clearTimeout(timerOcioso);
+      timerOcioso = setTimeout(() => {
+        falar('Ainda por aí? Se precisar de ajuda, estou por aqui! 👍');
+      }, 8000);
+    }
+    window.addEventListener('mousemove', reiniciarOcioso);
+    reiniciarOcioso();
   </script>
 
 </body>
